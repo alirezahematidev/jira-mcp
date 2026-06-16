@@ -151,11 +151,14 @@ uvx twine check dist/* # validate package metadata
 
 Releases are automated: pushing a `vX.Y.Z` tag triggers
 [`.github/workflows/publish.yml`](.github/workflows/publish.yml), which builds
-the package and publishes it to PyPI via
-[Trusted Publishing](https://docs.pypi.org/trusted-publishers/) (OIDC, no API
-token stored). Bump `__version__` in
+the package and creates a GitHub Release with the wheel + sdist attached (no
+external accounts or secrets needed). To cut a release: bump `__version__` in
 [`src/jira_mcp/__init__.py`](src/jira_mcp/__init__.py), update
-[`CHANGELOG.md`](CHANGELOG.md), then tag.
+[`CHANGELOG.md`](CHANGELOG.md), commit, then tag:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
 
 ## License
 

@@ -1,38 +1,37 @@
-name: Publish to PyPI
+name: Publish Release
 
-# Publishes on a version tag (e.g. v0.1.0). Uses PyPI Trusted Publishing
-# (OIDC) — no API token needed. Configure the publisher at
-# https://pypi.org/manage/account/publishing/ for this repo + workflow.
+# On a version tag (e.g. v0.1.0): build the wheel + sdist and publish a GitHub
+# Release with those artifacts attached. No external accounts or secrets needed
+# — uses the built-in GITHUB_TOKEN.
 
 on:
   push:
     tags: ["v*"]
 
+permissions:
+  contents: write  # required to create a Release
+
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.12"
-      - run: uv build
-      - run: uvx twine check dist/*
-      - uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist/*
 
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write  # required for trusted publishing
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
-      - name: Publish
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Build sdist and wheel
+        run: uv build
+
+      - name: Check metadata
+        run: uvx twine check dist/*
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
