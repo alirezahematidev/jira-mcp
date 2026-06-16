@@ -46,7 +46,6 @@ class JiraClient:
             base_url=settings.url,
             headers={"Accept": "application/json", "Content-Type":
             "application/json","Authorization":f"Bearer {settings.api_token}"},
-            # auth=httpx.BasicAuth(settings.email or "", settings.api_token or ""),
             timeout=settings.timeout,
             verify=settings.verify_ssl,
         )
