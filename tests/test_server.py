@@ -8,7 +8,7 @@ from jira_mcp import server
 from jira_mcp.client import JiraClient
 from jira_mcp.config import JiraSettings
 
-CLOUD = "https://example.atlassian.net"
+JIRA = "https://works.digikala.com"
 
 
 @pytest.fixture(autouse=True)
@@ -25,10 +25,9 @@ def reset_singletons():
 
 def _install(read_only=False):
     settings = JiraSettings(
-        url=CLOUD,
+        url=JIRA,
         email="me@example.com",
         api_token="t",
-        is_cloud=True,
         read_only=read_only,
     )
     server._settings = settings
@@ -38,7 +37,7 @@ def _install(read_only=False):
 @respx.mock
 async def test_get_current_user_tool():
     _install()
-    respx.get(f"{CLOUD}/rest/api/3/myself").mock(
+    respx.get(f"{JIRA}/rest/api/2/myself").mock(
         return_value=httpx.Response(200, json={"accountId": "abc", "displayName": "Me"})
     )
     out = await server.get_current_user()
@@ -49,7 +48,7 @@ async def test_get_current_user_tool():
 @respx.mock
 async def test_search_issues_clamps_max_results():
     _install()
-    route = respx.post(f"{CLOUD}/rest/api/3/search").mock(
+    route = respx.post(f"{JIRA}/rest/api/2/search").mock(
         return_value=httpx.Response(200, json={"issues": [], "total": 0})
     )
     await server.search_issues("project = P", max_results=9999)
@@ -63,10 +62,10 @@ async def test_search_issues_clamps_max_results():
 @respx.mock
 async def test_get_issue_with_comments():
     _install()
-    respx.get(f"{CLOUD}/rest/api/3/issue/P-1").mock(
+    respx.get(f"{JIRA}/rest/api/2/issue/P-1").mock(
         return_value=httpx.Response(200, json={"key": "P-1", "fields": {"summary": "s"}})
     )
-    respx.get(f"{CLOUD}/rest/api/3/issue/P-1/comment").mock(
+    respx.get(f"{JIRA}/rest/api/2/issue/P-1/comment").mock(
         return_value=httpx.Response(
             200,
             json={"comments": [{"id": "1", "author": {"displayName": "A"}, "body": "hi"}]},
@@ -95,7 +94,7 @@ async def test_update_issue_requires_fields():
 @respx.mock
 async def test_create_issue_returns_url():
     _install()
-    respx.post(f"{CLOUD}/rest/api/3/issue").mock(
+    respx.post(f"{JIRA}/rest/api/2/issue").mock(
         return_value=httpx.Response(201, json={"key": "P-7"})
     )
     out = await server.create_issue(project_key="P", summary="hi")
@@ -107,7 +106,7 @@ async def test_create_issue_returns_url():
 @respx.mock
 async def test_jira_error_becomes_tool_error():
     _install()
-    respx.get(f"{CLOUD}/rest/api/3/issue/BAD").mock(
+    respx.get(f"{JIRA}/rest/api/2/issue/BAD").mock(
         return_value=httpx.Response(404, json={"errorMessages": ["not found"]})
     )
     with pytest.raises(server.ToolError) as exc:

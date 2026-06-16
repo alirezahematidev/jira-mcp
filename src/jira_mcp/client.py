@@ -1,8 +1,7 @@
-"""Async HTTP client wrapping the Jira REST API.
+"""Async HTTP client wrapping the Jira REST API (Server / Data Center).
 
-Supports both Jira Cloud (REST API v3, rich text as ADF) and Jira Server / Data
-Center (REST API v2, plain-text rich fields). The version and text encoding are
-selected automatically from the configured authentication mode / URL.
+Targets self-hosted Jira: REST API v2, plain-text rich-text fields, and
+username-based user references. Authentication is HTTP basic.
 """
 
 from __future__ import annotations
@@ -11,8 +10,10 @@ from typing import Any
 
 import httpx
 
-from .adf import adf_to_text, text_to_adf
 from .config import JiraSettings
+
+API = "/rest/api/2"
+AGILE = "/rest/agile/1.0"
 
 
 class JiraError(RuntimeError):
@@ -25,7 +26,7 @@ class JiraError(RuntimeError):
 
 
 class JiraClient:
-    """A thin async wrapper around the Jira REST API.
+    """A thin async wrapper around the self-hosted Jira REST API.
 
     Use as an async context manager so the underlying connection pool is
     cleaned up::
@@ -36,17 +37,14 @@ class JiraClient:
 
     def __init__(self, settings: JiraSettings, *, client: httpx.AsyncClient | None = None):
         self.settings = settings
-        # Cloud uses API v3 (ADF); Server/DC uses v2 (wiki/plain text).
-        self.api_version = "3" if settings.is_cloud else "2"
         self._owns_client = client is None
         self._client = client or self._build_client(settings)
 
     @staticmethod
     def _build_client(settings: JiraSettings) -> httpx.AsyncClient:
-        headers = {"Accept": "application/json", "Content-Type": "application/json"}
         return httpx.AsyncClient(
             base_url=settings.url,
-            headers=headers,
+            headers={"Accept": "application/json", "Content-Type": "application/json"},
             auth=httpx.BasicAuth(settings.email or "", settings.api_token or ""),
             timeout=settings.timeout,
             verify=settings.verify_ssl,
@@ -101,47 +99,27 @@ class JiraClient:
                 messages.append(str(data["message"]))
         return f"HTTP {resp.status_code}: " + ("; ".join(messages) or resp.reason_phrase)
 
-    def _api(self, path: str) -> str:
-        return f"/rest/api/{self.api_version}{path}"
-
-    def _agile(self, path: str) -> str:
-        return f"/rest/agile/1.0{path}"
-
-    def _encode_text(self, text: str) -> Any:
-        """Encode a rich-text field for the active API version."""
-        return text_to_adf(text) if self.api_version == "3" else text
-
     # --- system / users -----------------------------------------------------
 
     async def myself(self) -> dict[str, Any]:
-        return await self._request("GET", self._api("/myself"))
+        return await self._request("GET", f"{API}/myself")
 
     async def search_users(self, query: str, max_results: int = 20) -> list[dict[str, Any]]:
-        # Cloud uses ?query=, Server/DC uses ?username=.
-        param = "query" if self.settings.is_cloud else "username"
         return await self._request(
             "GET",
-            self._api("/user/search"),
-            params={param: query, "maxResults": max_results},
+            f"{API}/user/search",
+            params={"username": query, "maxResults": max_results},
         )
 
     # --- projects -----------------------------------------------------------
 
     async def list_projects(self, max_results: int = 50) -> list[dict[str, Any]]:
-        if self.api_version == "3":
-            data = await self._request(
-                "GET",
-                self._api("/project/search"),
-                params={"maxResults": max_results},
-            )
-            return data.get("values", [])
-        return await self._request("GET", self._api("/project"))
+        # Server/DC returns the full list; max_results is applied client-side.
+        projects = await self._request("GET", f"{API}/project")
+        return projects[:max_results] if isinstance(projects, list) else projects
 
     async def get_project(self, project_key: str) -> dict[str, Any]:
-        return await self._request("GET", self._api(f"/project/{project_key}"))
-
-    async def get_project_statuses(self, project_key: str) -> list[dict[str, Any]]:
-        return await self._request("GET", self._api(f"/project/{project_key}/statuses"))
+        return await self._request("GET", f"{API}/project/{project_key}")
 
     # --- issues -------------------------------------------------------------
 
@@ -153,14 +131,10 @@ class JiraClient:
         start_at: int = 0,
         fields: list[str] | None = None,
     ) -> dict[str, Any]:
-        body: dict[str, Any] = {
-            "jql": jql,
-            "maxResults": max_results,
-            "startAt": start_at,
-        }
+        body: dict[str, Any] = {"jql": jql, "maxResults": max_results, "startAt": start_at}
         if fields:
             body["fields"] = fields
-        return await self._request("POST", self._api("/search"), json=body)
+        return await self._request("POST", f"{API}/search", json=body)
 
     async def get_issue(
         self, issue_key: str, *, fields: list[str] | None = None, expand: str | None = None
@@ -170,7 +144,7 @@ class JiraClient:
             params["fields"] = ",".join(fields)
         if expand:
             params["expand"] = expand
-        return await self._request("GET", self._api(f"/issue/{issue_key}"), params=params)
+        return await self._request("GET", f"{API}/issue/{issue_key}", params=params)
 
     async def create_issue(
         self,
@@ -191,64 +165,53 @@ class JiraClient:
             "issuetype": {"name": issue_type},
         }
         if description:
-            fields["description"] = self._encode_text(description)
+            fields["description"] = description
         if priority:
             fields["priority"] = {"name": priority}
         if assignee:
-            fields["assignee"] = self._account_ref(assignee)
+            fields["assignee"] = {"name": assignee}
         if labels:
             fields["labels"] = labels
         if parent_key:
             fields["parent"] = {"key": parent_key}
         if extra_fields:
             fields.update(extra_fields)
-        return await self._request("POST", self._api("/issue"), json={"fields": fields})
+        return await self._request("POST", f"{API}/issue", json={"fields": fields})
 
     async def update_issue(self, issue_key: str, fields: dict[str, Any]) -> None:
-        await self._request("PUT", self._api(f"/issue/{issue_key}"), json={"fields": fields})
+        await self._request("PUT", f"{API}/issue/{issue_key}", json={"fields": fields})
 
     async def delete_issue(self, issue_key: str, *, delete_subtasks: bool = False) -> None:
         await self._request(
             "DELETE",
-            self._api(f"/issue/{issue_key}"),
+            f"{API}/issue/{issue_key}",
             params={"deleteSubtasks": str(delete_subtasks).lower()},
         )
 
-    def _account_ref(self, user: str) -> dict[str, Any]:
-        """Build a user reference for the active API version.
-
-        Cloud identifies users by accountId; Server/DC by username/name.
-        """
-        return {"accountId": user} if self.settings.is_cloud else {"name": user}
-
     async def assign_issue(self, issue_key: str, assignee: str | None) -> None:
         # ``assignee=None`` clears the assignee.
-        if assignee is None:
-            body = {"accountId": None} if self.settings.is_cloud else {"name": None}
-        else:
-            body = self._account_ref(assignee)
-        await self._request("PUT", self._api(f"/issue/{issue_key}/assignee"), json=body)
+        await self._request(
+            "PUT", f"{API}/issue/{issue_key}/assignee", json={"name": assignee}
+        )
 
     # --- comments -----------------------------------------------------------
 
     async def get_comments(self, issue_key: str, max_results: int = 50) -> dict[str, Any]:
         return await self._request(
             "GET",
-            self._api(f"/issue/{issue_key}/comment"),
+            f"{API}/issue/{issue_key}/comment",
             params={"maxResults": max_results},
         )
 
     async def add_comment(self, issue_key: str, body: str) -> dict[str, Any]:
         return await self._request(
-            "POST",
-            self._api(f"/issue/{issue_key}/comment"),
-            json={"body": self._encode_text(body)},
+            "POST", f"{API}/issue/{issue_key}/comment", json={"body": body}
         )
 
     # --- transitions / workflow --------------------------------------------
 
     async def get_transitions(self, issue_key: str) -> list[dict[str, Any]]:
-        data = await self._request("GET", self._api(f"/issue/{issue_key}/transitions"))
+        data = await self._request("GET", f"{API}/issue/{issue_key}/transitions")
         return data.get("transitions", [])
 
     async def transition_issue(
@@ -256,8 +219,8 @@ class JiraClient:
     ) -> None:
         body: dict[str, Any] = {"transition": {"id": transition_id}}
         if comment:
-            body["update"] = {"comment": [{"add": {"body": self._encode_text(comment)}}]}
-        await self._request("POST", self._api(f"/issue/{issue_key}/transitions"), json=body)
+            body["update"] = {"comment": [{"add": {"body": comment}}]}
+        await self._request("POST", f"{API}/issue/{issue_key}/transitions", json=body)
 
     # --- worklog ------------------------------------------------------------
 
@@ -266,22 +229,18 @@ class JiraClient:
     ) -> dict[str, Any]:
         body: dict[str, Any] = {"timeSpent": time_spent}
         if comment:
-            body["comment"] = self._encode_text(comment)
-        return await self._request(
-            "POST", self._api(f"/issue/{issue_key}/worklog"), json=body
-        )
+            body["comment"] = comment
+        return await self._request("POST", f"{API}/issue/{issue_key}/worklog", json=body)
 
     # --- links --------------------------------------------------------------
 
-    async def link_issues(
-        self, inward_key: str, outward_key: str, link_type: str
-    ) -> None:
+    async def link_issues(self, inward_key: str, outward_key: str, link_type: str) -> None:
         body = {
             "type": {"name": link_type},
             "inwardIssue": {"key": inward_key},
             "outwardIssue": {"key": outward_key},
         }
-        await self._request("POST", self._api("/issueLink"), json=body)
+        await self._request("POST", f"{API}/issueLink", json=body)
 
     # --- agile (boards / sprints) -------------------------------------------
 
@@ -291,7 +250,7 @@ class JiraClient:
         params: dict[str, Any] = {"maxResults": max_results}
         if project_key:
             params["projectKeyOrId"] = project_key
-        return await self._request("GET", self._agile("/board"), params=params)
+        return await self._request("GET", f"{AGILE}/board", params=params)
 
     async def list_sprints(
         self, board_id: int, *, state: str | None = None, max_results: int = 50
@@ -299,12 +258,4 @@ class JiraClient:
         params: dict[str, Any] = {"maxResults": max_results}
         if state:
             params["state"] = state
-        return await self._request(
-            "GET", self._agile(f"/board/{board_id}/sprint"), params=params
-        )
-
-    # --- formatting helpers -------------------------------------------------
-
-    def render_text(self, value: Any) -> str:
-        """Render a rich-text field value to plain text regardless of version."""
-        return adf_to_text(value)
+        return await self._request("GET", f"{AGILE}/board/{board_id}/sprint", params=params)

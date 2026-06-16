@@ -9,7 +9,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from .adf import adf_to_text
+
+def _text(value: Any) -> str:
+    """Rich-text fields are plain strings (wiki markup) on Server/DC."""
+    return value if isinstance(value, str) else ""
 
 
 def _user(field: Any) -> str | None:
@@ -35,7 +38,7 @@ def format_issue(issue: dict[str, Any], *, base_url: str = "") -> dict[str, Any]
         "updated": fields.get("updated"),
     }
     if "description" in fields:
-        out["description"] = adf_to_text(fields.get("description"))
+        out["description"] = _text(fields.get("description"))
     parent = fields.get("parent")
     if parent:
         out["parent"] = parent.get("key")
@@ -63,7 +66,7 @@ def format_comment(comment: dict[str, Any]) -> dict[str, Any]:
         "author": _user(comment.get("author")),
         "created": comment.get("created"),
         "updated": comment.get("updated"),
-        "body": adf_to_text(comment.get("body")),
+        "body": _text(comment.get("body")),
     }
 
 
@@ -88,8 +91,8 @@ def format_transition(transition: dict[str, Any]) -> dict[str, Any]:
 
 def format_user(user: dict[str, Any]) -> dict[str, Any]:
     out = {
-        "account_id": user.get("accountId"),
         "name": user.get("name"),
+        "key": user.get("key"),
         "display_name": user.get("displayName"),
         "email": user.get("emailAddress"),
         "active": user.get("active"),

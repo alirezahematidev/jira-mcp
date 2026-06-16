@@ -183,7 +183,7 @@ async def get_project(project_key: str) -> dict[str, Any]:
 
 @mcp.tool()
 async def search_users(query: str, max_results: int = 20) -> list[dict[str, Any]]:
-    """Search for users by name or email. Returns account ids needed for assignment."""
+    """Search for users by name or email. Returns usernames needed for assignment."""
     client = _get_client()
     try:
         users = await client.search_users(query, max_results=max_results)
@@ -261,8 +261,7 @@ async def create_issue(
         issue_type: Issue type name, e.g. "Task", "Bug", "Story", "Sub-task".
         description: Optional plain-text description.
         priority: Optional priority name, e.g. "High".
-        assignee: Optional assignee. On Cloud pass an accountId
-            (see search_users); on Server/DC a username.
+        assignee: Optional assignee username (see search_users).
         labels: Optional list of labels.
         parent_key: Parent issue key, required when creating a Sub-task.
     """
@@ -300,7 +299,7 @@ async def update_issue(
     if summary is not None:
         fields["summary"] = summary
     if description is not None:
-        fields["description"] = client._encode_text(description)
+        fields["description"] = description
     if priority is not None:
         fields["priority"] = {"name": priority}
     if labels is not None:
@@ -350,10 +349,7 @@ async def transition_issue(
 
 @mcp.tool()
 async def assign_issue(issue_key: str, assignee: str | None) -> dict[str, Any]:
-    """Assign an issue to a user, or pass null/empty to unassign.
-
-    On Cloud, ``assignee`` is an accountId (see search_users); on Server/DC, a username.
-    """
+    """Assign an issue to a user (by username, see search_users), or pass null/empty to unassign."""
     _require_writable()
     client = _get_client()
     assignee = assignee or None

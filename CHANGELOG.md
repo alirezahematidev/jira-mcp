@@ -10,8 +10,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Hardcoded the Jira host to `https://works.digikala.com` and locked
   authentication to HTTP basic. Users now only provide `JIRA_EMAIL` and
-  `JIRA_API_TOKEN`. Deployment defaults to Jira Cloud (override with
-  `JIRA_IS_CLOUD=false`).
+  `JIRA_API_TOKEN`.
+- Targeted self-hosted Jira (Server / Data Center) exclusively: REST API v2,
+  plain-text rich-text fields, and username-based user references. Removed
+  Jira Cloud support (REST v3, ADF, `accountId`, the `JIRA_IS_CLOUD` flag) and
+  the ADF conversion module.
+
+### Removed
+
+- `jira_mcp.adf` module and Cloud-only code paths.
 
 ## [0.1.0]
 

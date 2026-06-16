@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import pytest
 import respx
@@ -5,162 +7,143 @@ import respx
 from jira_mcp.client import JiraClient, JiraError
 from jira_mcp.config import JiraSettings
 
-CLOUD = "https://example.atlassian.net"
-SERVER = "https://jira.local"
+JIRA = "https://works.digikala.com"
 
 
-def cloud_settings():
-    return JiraSettings(url=CLOUD, email="me@example.com", api_token="t", is_cloud=True)
-
-
-def server_settings():
-    return JiraSettings(url=SERVER, email="me@example.com", api_token="t", is_cloud=False)
+def settings():
+    return JiraSettings(url=JIRA, email="me@digikala.com", api_token="t")
 
 
 @pytest.fixture
-async def cloud():
-    client = JiraClient(cloud_settings())
+async def jira():
+    client = JiraClient(settings())
     yield client
     await client.aclose()
-
-
-@pytest.fixture
-async def server():
-    client = JiraClient(server_settings())
-    yield client
-    await client.aclose()
-
-
-def test_api_version_selection():
-    assert JiraClient(cloud_settings()).api_version == "3"
-    assert JiraClient(server_settings()).api_version == "2"
 
 
 @respx.mock
-async def test_get_issue(cloud):
-    route = respx.get(f"{CLOUD}/rest/api/3/issue/PROJ-1").mock(
+async def test_get_issue(jira):
+    route = respx.get(f"{JIRA}/rest/api/2/issue/PROJ-1").mock(
         return_value=httpx.Response(200, json={"key": "PROJ-1", "fields": {"summary": "s"}})
     )
-    issue = await cloud.get_issue("PROJ-1")
+    issue = await jira.get_issue("PROJ-1")
     assert route.called
     assert issue["key"] == "PROJ-1"
 
 
 @respx.mock
-async def test_search_issues_posts_jql(cloud):
-    route = respx.post(f"{CLOUD}/rest/api/3/search").mock(
+async def test_search_issues_posts_jql(jira):
+    route = respx.post(f"{JIRA}/rest/api/2/search").mock(
         return_value=httpx.Response(200, json={"issues": [], "total": 0})
     )
-    await cloud.search_issues("project = PROJ", max_results=10)
+    await jira.search_issues("project = PROJ", max_results=10)
     assert route.called
-    sent = route.calls.last.request
-    assert b"project = PROJ" in sent.content
+    assert b"project = PROJ" in route.calls.last.request.content
 
 
 @respx.mock
-async def test_create_issue_encodes_adf_on_cloud(cloud):
-    route = respx.post(f"{CLOUD}/rest/api/3/issue").mock(
+async def test_create_issue_uses_plain_text_description(jira):
+    route = respx.post(f"{JIRA}/rest/api/2/issue").mock(
         return_value=httpx.Response(201, json={"key": "PROJ-9"})
     )
-    await cloud.create_issue(
+    await jira.create_issue(
         project_key="PROJ", summary="hi", issue_type="Task", description="body"
     )
-    import json
-
-    body = json.loads(route.calls.last.request.content)
-    # On cloud, description should be an ADF document, not a plain string.
-    assert body["fields"]["description"]["type"] == "doc"
-
-
-@respx.mock
-async def test_create_issue_plain_text_on_server(server):
-    route = respx.post(f"{SERVER}/rest/api/2/issue").mock(
-        return_value=httpx.Response(201, json={"key": "PROJ-9"})
-    )
-    await server.create_issue(
-        project_key="PROJ", summary="hi", issue_type="Task", description="body"
-    )
-    import json
-
     body = json.loads(route.calls.last.request.content)
     assert body["fields"]["description"] == "body"
 
 
 @respx.mock
-async def test_assign_issue_uses_account_id_on_cloud(cloud):
-    route = respx.put(f"{CLOUD}/rest/api/3/issue/PROJ-1/assignee").mock(
-        return_value=httpx.Response(204)
+async def test_create_issue_assignee_by_name(jira):
+    route = respx.post(f"{JIRA}/rest/api/2/issue").mock(
+        return_value=httpx.Response(201, json={"key": "PROJ-9"})
     )
-    await cloud.assign_issue("PROJ-1", "5b10ac")
-    import json
-
+    await jira.create_issue(
+        project_key="PROJ", summary="hi", issue_type="Task", assignee="bob"
+    )
     body = json.loads(route.calls.last.request.content)
-    assert body == {"accountId": "5b10ac"}
+    assert body["fields"]["assignee"] == {"name": "bob"}
 
 
 @respx.mock
-async def test_assign_issue_uses_name_on_server(server):
-    route = respx.put(f"{SERVER}/rest/api/2/issue/PROJ-1/assignee").mock(
+async def test_assign_issue_uses_name(jira):
+    route = respx.put(f"{JIRA}/rest/api/2/issue/PROJ-1/assignee").mock(
         return_value=httpx.Response(204)
     )
-    await server.assign_issue("PROJ-1", "bob")
-    import json
-
+    await jira.assign_issue("PROJ-1", "bob")
     body = json.loads(route.calls.last.request.content)
     assert body == {"name": "bob"}
 
 
 @respx.mock
-async def test_transition_with_comment(cloud):
-    route = respx.post(f"{CLOUD}/rest/api/3/issue/PROJ-1/transitions").mock(
+async def test_unassign_sends_null_name(jira):
+    route = respx.put(f"{JIRA}/rest/api/2/issue/PROJ-1/assignee").mock(
         return_value=httpx.Response(204)
     )
-    await cloud.transition_issue("PROJ-1", "31", comment="done")
-    import json
-
+    await jira.assign_issue("PROJ-1", None)
     body = json.loads(route.calls.last.request.content)
-    assert body["transition"]["id"] == "31"
-    assert "update" in body
+    assert body == {"name": None}
 
 
 @respx.mock
-async def test_error_message_extraction(cloud):
-    respx.get(f"{CLOUD}/rest/api/3/issue/BAD-1").mock(
+async def test_transition_with_comment(jira):
+    route = respx.post(f"{JIRA}/rest/api/2/issue/PROJ-1/transitions").mock(
+        return_value=httpx.Response(204)
+    )
+    await jira.transition_issue("PROJ-1", "31", comment="done")
+    body = json.loads(route.calls.last.request.content)
+    assert body["transition"]["id"] == "31"
+    assert body["update"]["comment"][0]["add"]["body"] == "done"
+
+
+@respx.mock
+async def test_search_users_uses_username_param(jira):
+    route = respx.get(f"{JIRA}/rest/api/2/user/search").mock(
+        return_value=httpx.Response(200, json=[{"name": "bob"}])
+    )
+    await jira.search_users("bob")
+    assert route.called
+    assert route.calls.last.request.url.params["username"] == "bob"
+
+
+@respx.mock
+async def test_list_projects(jira):
+    route = respx.get(f"{JIRA}/rest/api/2/project").mock(
+        return_value=httpx.Response(200, json=[{"key": "PROJ"}, {"key": "OTHER"}])
+    )
+    projects = await jira.list_projects(max_results=1)
+    assert route.called
+    assert projects == [{"key": "PROJ"}]  # max_results applied client-side
+
+
+@respx.mock
+async def test_error_message_extraction(jira):
+    respx.get(f"{JIRA}/rest/api/2/issue/BAD-1").mock(
         return_value=httpx.Response(
             400, json={"errorMessages": ["Issue does not exist"], "errors": {}}
         )
     )
     with pytest.raises(JiraError) as exc:
-        await cloud.get_issue("BAD-1")
+        await jira.get_issue("BAD-1")
     assert exc.value.status_code == 400
     assert "Issue does not exist" in str(exc.value)
 
 
 @respx.mock
-async def test_field_errors_extraction(cloud):
-    respx.post(f"{CLOUD}/rest/api/3/issue").mock(
+async def test_field_errors_extraction(jira):
+    respx.post(f"{JIRA}/rest/api/2/issue").mock(
         return_value=httpx.Response(
             400, json={"errorMessages": [], "errors": {"summary": "is required"}}
         )
     )
     with pytest.raises(JiraError) as exc:
-        await cloud.create_issue(project_key="P", summary="", issue_type="Task")
+        await jira.create_issue(project_key="P", summary="", issue_type="Task")
     assert "summary: is required" in str(exc.value)
 
 
 @respx.mock
-async def test_list_projects_cloud_uses_search(cloud):
-    route = respx.get(f"{CLOUD}/rest/api/3/project/search").mock(
-        return_value=httpx.Response(200, json={"values": [{"key": "PROJ"}]})
-    )
-    projects = await cloud.list_projects()
-    assert route.called
-    assert projects[0]["key"] == "PROJ"
-
-
-@respx.mock
-async def test_network_error_becomes_jira_error(cloud):
-    respx.get(f"{CLOUD}/rest/api/3/myself").mock(side_effect=httpx.ConnectError("boom"))
+async def test_network_error_becomes_jira_error(jira):
+    respx.get(f"{JIRA}/rest/api/2/myself").mock(side_effect=httpx.ConnectError("boom"))
     with pytest.raises(JiraError) as exc:
-        await cloud.myself()
+        await jira.myself()
     assert exc.value.status_code == 0

@@ -15,14 +15,6 @@ def test_url_defaults_to_company_host():
     assert s.url == "https://works.digikala.com"
 
 
-def test_defaults_to_cloud():
-    assert _base().is_cloud is True
-
-
-def test_can_override_to_server_dc():
-    assert _base(is_cloud=False).is_cloud is False
-
-
 def test_url_trailing_slash_trimmed():
     s = _base(url="https://works.digikala.com/")
     assert s.url == "https://works.digikala.com"

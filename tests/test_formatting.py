@@ -48,22 +48,16 @@ def test_format_search_results():
     assert out["issues"][0]["key"] == "PROJ-1"
 
 
-def test_format_comment_flattens_adf_body():
+def test_format_comment_plain_text_body():
     comment = {
         "id": "10",
         "author": {"displayName": "Alice"},
         "created": "2024-01-01",
-        "body": {
-            "type": "doc",
-            "version": 1,
-            "content": [
-                {"type": "paragraph", "content": [{"type": "text", "text": "hello"}]}
-            ],
-        },
+        "body": "hello world",
     }
     out = format_comment(comment)
     assert out["author"] == "Alice"
-    assert out["body"] == "hello"
+    assert out["body"] == "hello world"
 
 
 def test_format_transition():
@@ -72,6 +66,6 @@ def test_format_transition():
 
 
 def test_format_user_drops_none():
-    out = format_user({"accountId": "abc", "displayName": "Alice", "active": True})
-    assert out["account_id"] == "abc"
+    out = format_user({"name": "alice", "displayName": "Alice", "active": True})
+    assert out["name"] == "alice"
     assert "email" not in out
