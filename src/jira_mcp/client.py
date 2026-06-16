@@ -44,7 +44,8 @@ class JiraClient:
     def _build_client(settings: JiraSettings) -> httpx.AsyncClient:
         return httpx.AsyncClient(
             base_url=settings.url,
-            headers={"Accept": "application/json", "Content-Type": "application/json","Authorization":f"Bearer {settings.api_token}"},
+            headers={"Accept": "application/json", "Content-Type":
+            "application/json","Authorization":f"Bearer {settings.api_token}"},
             # auth=httpx.BasicAuth(settings.email or "", settings.api_token or ""),
             timeout=settings.timeout,
             verify=settings.verify_ssl,
