@@ -1,45 +1,38 @@
 import pytest
 
-from jira_mcp.config import JiraSettings
+from jira_mcp.config import DEFAULT_JIRA_URL, JiraSettings
 
 
 def _base(**kw):
-    args = dict(
-        url="https://example.atlassian.net",
-        auth_type="basic",
-        email="me@example.com",
-        api_token="token",
-    )
+    args = dict(email="me@digikala.com", api_token="token")
     args.update(kw)
     return JiraSettings(**args)
 
 
-def test_basic_auth_valid():
+def test_url_defaults_to_company_host():
     s = _base()
-    assert s.is_cloud is True
-    assert s.url == "https://example.atlassian.net"
+    assert s.url == DEFAULT_JIRA_URL
+    assert s.url == "https://works.digikala.com"
+
+
+def test_defaults_to_cloud():
+    assert _base().is_cloud is True
+
+
+def test_can_override_to_server_dc():
+    assert _base(is_cloud=False).is_cloud is False
 
 
 def test_url_trailing_slash_trimmed():
-    s = _base(url="https://example.atlassian.net/")
-    assert s.url == "https://example.atlassian.net"
+    s = _base(url="https://works.digikala.com/")
+    assert s.url == "https://works.digikala.com"
 
 
-def test_basic_auth_requires_email_and_token():
+def test_requires_email_and_token():
     with pytest.raises(ValueError):
-        JiraSettings(url="https://x.atlassian.net", auth_type="basic")
-
-
-def test_bearer_auth_requires_token():
+        JiraSettings(email=None, api_token=None)
     with pytest.raises(ValueError):
-        JiraSettings(url="https://jira.local", auth_type="bearer")
-
-
-def test_bearer_auth_valid_and_not_cloud():
-    s = JiraSettings(
-        url="https://jira.local", auth_type="bearer", personal_token="pat"
-    )
-    assert s.is_cloud is False
+        JiraSettings(email="me@digikala.com")  # missing token
 
 
 def test_invalid_url_scheme():

@@ -10,13 +10,11 @@ SERVER = "https://jira.local"
 
 
 def cloud_settings():
-    return JiraSettings(
-        url=CLOUD, auth_type="basic", email="me@example.com", api_token="t"
-    )
+    return JiraSettings(url=CLOUD, email="me@example.com", api_token="t", is_cloud=True)
 
 
 def server_settings():
-    return JiraSettings(url=SERVER, auth_type="bearer", personal_token="pat")
+    return JiraSettings(url=SERVER, email="me@example.com", api_token="t", is_cloud=False)
 
 
 @pytest.fixture

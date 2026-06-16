@@ -5,9 +5,8 @@ A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for
 Desktop, Claude Code, Cursor, etc.) search, read, and manage Jira issues,
 projects, comments, workflow transitions, worklogs, and agile boards.
 
-Works with both **Jira Cloud** (REST API v3 + ADF) and **Jira Server / Data
-Center** (REST API v2). The correct API version and text encoding are selected
-automatically.
+The Jira host (`https://works.digikala.com`) and basic authentication are
+preconfigured — you only supply your email and API token.
 
 ## Features
 
@@ -68,36 +67,25 @@ uv pip install -e ".[dev]"   # or: pip install -e ".[dev]"
 
 ## Configuration
 
-Configure via environment variables (or a `.env` file in the working
-directory). Copy `.env.example` to `.env` and fill it in.
-
-### Jira Cloud (most common)
+The Jira host (`https://works.digikala.com`) and basic authentication are
+built in — you only need to provide your credentials via environment variables
+(or a `.env` file; copy `.env.example` to `.env`).
 
 1. Create an API token at
    <https://id.atlassian.com/manage-profile/security/api-tokens>.
 2. Set:
 
 ```bash
-JIRA_URL=https://your-domain.atlassian.net
-JIRA_AUTH_TYPE=basic
-JIRA_EMAIL=you@example.com
+JIRA_EMAIL=you@digikala.com
 JIRA_API_TOKEN=your-api-token
-```
-
-### Jira Server / Data Center
-
-Use a [Personal Access Token](https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html):
-
-```bash
-JIRA_URL=https://jira.your-company.com
-JIRA_AUTH_TYPE=bearer
-JIRA_PERSONAL_TOKEN=your-personal-access-token
 ```
 
 ### Optional settings
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
+| `JIRA_URL` | `https://works.digikala.com` | Override the host only if it moves |
+| `JIRA_IS_CLOUD` | `true` | Set `false` if the host is Jira Server / Data Center |
 | `JIRA_TIMEOUT` | `30` | HTTP timeout (seconds) |
 | `JIRA_VERIFY_SSL` | `true` | Verify TLS certificates |
 | `JIRA_READ_ONLY` | `false` | Disable all write/delete tools |
@@ -122,9 +110,7 @@ Add to your MCP config (e.g. `claude_desktop_config.json`):
     "jira": {
       "command": "jira-mcp",
       "env": {
-        "JIRA_URL": "https://your-domain.atlassian.net",
-        "JIRA_AUTH_TYPE": "basic",
-        "JIRA_EMAIL": "you@example.com",
+        "JIRA_EMAIL": "you@digikala.com",
         "JIRA_API_TOKEN": "your-api-token"
       }
     }

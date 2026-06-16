@@ -26,9 +26,9 @@ def reset_singletons():
 def _install(read_only=False):
     settings = JiraSettings(
         url=CLOUD,
-        auth_type="basic",
         email="me@example.com",
         api_token="t",
+        is_cloud=True,
         read_only=read_only,
     )
     server._settings = settings

@@ -1,15 +1,17 @@
 """Configuration loading for the Jira MCP server.
 
-Settings are read from environment variables (and an optional ``.env`` file).
-See ``.env.example`` for the full list of supported variables.
+The Jira host is hardcoded to the company instance and authentication is always
+HTTP basic (email + API token). Users only need to supply ``JIRA_EMAIL`` and
+``JIRA_API_TOKEN``. See ``.env.example``.
 """
 
 from __future__ import annotations
 
-from typing import Literal
-
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Company Jira instance. Override with JIRA_URL only if it ever moves.
+DEFAULT_JIRA_URL = "https://works.digikala.com"
 
 
 class JiraSettings(BaseSettings):
@@ -22,20 +24,19 @@ class JiraSettings(BaseSettings):
         extra="ignore",
     )
 
-    url: str = Field(..., description="Base URL of the Jira instance, no trailing slash.")
-    auth_type: Literal["basic", "bearer"] = Field(
-        default="basic",
-        description="'basic' for Jira Cloud (email + API token), 'bearer' for Server/DC PAT.",
+    url: str = Field(
+        default=DEFAULT_JIRA_URL,
+        description="Base URL of the Jira instance (hardcoded to the company host).",
     )
 
-    # basic auth (Jira Cloud)
-    email: str | None = Field(default=None, description="Atlassian account email (basic auth).")
-    api_token: str | None = Field(default=None, description="Jira API token (basic auth).")
+    # Credentials — the only values a user must provide.
+    email: str | None = Field(default=None, description="Atlassian account email.")
+    api_token: str | None = Field(default=None, description="Jira API token.")
 
-    # bearer auth (Jira Server / Data Center)
-    personal_token: str | None = Field(
-        default=None, description="Personal Access Token (bearer auth)."
-    )
+    # Deployment flavour. email + API token via basic auth is the Jira Cloud
+    # model, so default to Cloud (REST v3 + ADF). Set JIRA_IS_CLOUD=false if the
+    # host is actually Server / Data Center (REST v2 + plain text).
+    is_cloud: bool = Field(default=True, description="Use the Jira Cloud REST API (v3 + ADF).")
 
     # behaviour
     timeout: float = Field(default=30.0, description="HTTP request timeout in seconds.")
@@ -46,32 +47,18 @@ class JiraSettings(BaseSettings):
     )
 
     @model_validator(mode="after")
-    def _validate_auth(self) -> JiraSettings:
-        # Normalise the URL.
+    def _validate(self) -> JiraSettings:
         self.url = self.url.rstrip("/")
         if not self.url.startswith(("http://", "https://")):
             raise ValueError("JIRA_URL must start with http:// or https://")
-
-        if self.auth_type == "basic":
-            if not self.email or not self.api_token:
-                raise ValueError(
-                    "basic auth requires JIRA_EMAIL and JIRA_API_TOKEN to be set."
-                )
-        elif self.auth_type == "bearer":
-            if not self.personal_token:
-                raise ValueError("bearer auth requires JIRA_PERSONAL_TOKEN to be set.")
+        if not self.email or not self.api_token:
+            raise ValueError(
+                "Set JIRA_EMAIL and JIRA_API_TOKEN. Create an API token at "
+                "https://id.atlassian.com/manage-profile/security/api-tokens"
+            )
         return self
-
-    @property
-    def is_cloud(self) -> bool:
-        """Heuristic: Atlassian Cloud instances live on *.atlassian.net."""
-        return "atlassian.net" in self.url
 
 
 def load_settings() -> JiraSettings:
-    """Load and validate settings from the environment.
-
-    Raises a ``ValueError`` (via pydantic) with an actionable message when the
-    configuration is incomplete.
-    """
+    """Load and validate settings from the environment."""
     return JiraSettings()  # type: ignore[call-arg]

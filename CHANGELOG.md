@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Hardcoded the Jira host to `https://works.digikala.com` and locked
+  authentication to HTTP basic. Users now only provide `JIRA_EMAIL` and
+  `JIRA_API_TOKEN`. Deployment defaults to Jira Cloud (override with
+  `JIRA_IS_CLOUD=false`).
+
 ## [0.1.0]
 
 ### Added
