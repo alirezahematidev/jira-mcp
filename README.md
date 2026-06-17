@@ -7,7 +7,7 @@ read, and manage Jira issues, projects, comments, workflow transitions,
 worklogs, and agile boards.
 
 Targets the company's self-hosted Jira at (e.g. `https://works.digikala.com`) over the
-REST API v2 with HTTP basic auth — you only supply your email and API token.
+REST API v2 with HTTP basic auth — you only supply your PAT and host.
 
 ## Features
 
