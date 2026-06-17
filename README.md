@@ -6,31 +6,31 @@ lets MCP-compatible clients (Claude Desktop, Claude Code, Cursor, etc.) search,
 read, and manage Jira issues, projects, comments, workflow transitions,
 worklogs, and agile boards.
 
-Targets the company's self-hosted Jira at `https://works.digikala.com` over the
+Targets the company's self-hosted Jira at (e.g. `https://works.digikala.com`) over the
 REST API v2 with HTTP basic auth — you only supply your email and API token.
 
 ## Features
 
-| Tool | Description |
-| --- | --- |
-| `get_current_user` | Who am I? (connectivity check) |
-| `search_issues` | Search issues with JQL |
-| `get_issue` | Fetch one issue (optionally with comments) |
-| `get_comments` | List an issue's comments |
-| `list_transitions` | Available workflow transitions for an issue |
-| `list_projects` | List accessible projects |
-| `get_project` | Fetch one project |
-| `search_users` | Find users (returns account ids for assignment) |
-| `list_boards` | List agile boards |
-| `list_sprints` | List sprints on a board |
-| `create_issue` | Create an issue |
-| `update_issue` | Update fields on an issue |
-| `add_comment` | Comment on an issue |
-| `transition_issue` | Move an issue through its workflow |
-| `assign_issue` | Assign / unassign an issue |
-| `add_worklog` | Log time against an issue |
-| `link_issues` | Link two issues |
-| `delete_issue` | Delete an issue (guarded) |
+| Tool               | Description                                     |
+| ------------------ | ----------------------------------------------- |
+| `get_current_user` | Who am I? (connectivity check)                  |
+| `search_issues`    | Search issues with JQL                          |
+| `get_issue`        | Fetch one issue (optionally with comments)      |
+| `get_comments`     | List an issue's comments                        |
+| `list_transitions` | Available workflow transitions for an issue     |
+| `list_projects`    | List accessible projects                        |
+| `get_project`      | Fetch one project                               |
+| `search_users`     | Find users (returns account ids for assignment) |
+| `list_boards`      | List agile boards                               |
+| `list_sprints`     | List sprints on a board                         |
+| `create_issue`     | Create an issue                                 |
+| `update_issue`     | Update fields on an issue                       |
+| `add_comment`      | Comment on an issue                             |
+| `transition_issue` | Move an issue through its workflow              |
+| `assign_issue`     | Assign / unassign an issue                      |
+| `add_worklog`      | Log time against an issue                       |
+| `link_issues`      | Link two issues                                 |
+| `delete_issue`     | Delete an issue (guarded)                       |
 
 Write tools can be disabled entirely with `JIRA_READ_ONLY=true`.
 
@@ -72,7 +72,7 @@ Provide your Jira host and a personal access token (PAT) via environment
 variables (or a `.env` file; copy `.env.example` to `.env`):
 
 ```bash
-JIRA_HOST=https://works.digikala.com
+JIRA_HOST=your-jira-host
 JIRA_PAT=your-personal-access-token
 ```
 
@@ -80,11 +80,11 @@ Generate the PAT from your self-hosted Jira account settings.
 
 ### Optional settings
 
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `JIRA_TIMEOUT` | `30` | HTTP timeout (seconds) |
-| `JIRA_VERIFY_SSL` | `true` | Verify TLS certificates |
-| `JIRA_READ_ONLY` | `false` | Disable all write/delete tools |
+| Variable          | Default | Meaning                        |
+| ----------------- | ------- | ------------------------------ |
+| `JIRA_TIMEOUT`    | `30`    | HTTP timeout (seconds)         |
+| `JIRA_VERIFY_SSL` | `true`  | Verify TLS certificates        |
+| `JIRA_READ_ONLY`  | `false` | Disable all write/delete tools |
 
 ## Running
 
@@ -98,7 +98,7 @@ rather than run by hand.
 
 ### Claude Desktop / Claude Code
 
-Add to your MCP config (e.g. `claude_desktop_config.json`):
+Add to your MCP config (e.g. `.mcp.json`):
 
 ```json
 {
@@ -106,7 +106,7 @@ Add to your MCP config (e.g. `claude_desktop_config.json`):
     "jira": {
       "command": "jira-mcp",
       "env": {
-        "JIRA_HOST": "https://works.digikala.com",
+        "JIRA_HOST": "your-jira-host",
         "JIRA_PAT": "your-personal-access-token"
       }
     }
@@ -145,13 +145,6 @@ needed.
 uv build              # produces dist/*.whl and dist/*.tar.gz
 uvx twine check dist/* # validate package metadata
 ```
-
-Releases are automated: pushing a `vX.Y.Z` tag triggers
-[`.github/workflows/publish.yml`](.github/workflows/publish.yml), which builds
-the package and creates a GitHub Release with the wheel + sdist attached (no
-external accounts or secrets needed). To cut a release: bump `__version__` in
-[`src/jira_mcp/__init__.py`](src/jira_mcp/__init__.py), update
-[`CHANGELOG.md`](CHANGELOG.md), commit, then tag:
 
 ```bash
 git tag v0.1.0 && git push origin v0.1.0
