@@ -106,7 +106,7 @@ async def search_issues(
         )
     except JiraError as exc:
         raise ToolError(str(exc)) from exc
-    return format_search_results(data, base_url=client.settings.url)
+    return format_search_results(data, base_url=client.settings.host)
 
 
 @mcp.tool()
@@ -120,7 +120,7 @@ async def get_issue(issue_key: str, include_comments: bool = False) -> dict[str,
     client = _get_client()
     try:
         issue = await client.get_issue(issue_key)
-        result = format_issue(issue, base_url=client.settings.url)
+        result = format_issue(issue, base_url=client.settings.host)
         if include_comments:
             comments = await client.get_comments(issue_key)
             result["comments"] = [
@@ -281,7 +281,7 @@ async def create_issue(
     except JiraError as exc:
         raise ToolError(str(exc)) from exc
     key = created.get("key")
-    return {"key": key, "url": f"{client.settings.url}/browse/{key}" if key else None}
+    return {"key": key, "url": f"{client.settings.host}/browse/{key}" if key else None}
 
 
 @mcp.tool()

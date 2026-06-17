@@ -8,9 +8,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- Hardcoded the Jira host to `https://works.digikala.com` and locked
-  authentication to HTTP basic. Users now only provide `JIRA_EMAIL` and
-  `JIRA_API_TOKEN`.
+- Switched authentication to a bearer personal access token (PAT). Users now
+  provide `JIRA_HOST` (required) and `JIRA_PAT`; removed `JIRA_EMAIL`,
+  `JIRA_API_TOKEN`, and the hardcoded host default.
 - Targeted self-hosted Jira (Server / Data Center) exclusively: REST API v2,
   plain-text rich-text fields, and username-based user references. Removed
   Jira Cloud support (REST v3, ADF, `accountId`, the `JIRA_IS_CLOUD` flag) and

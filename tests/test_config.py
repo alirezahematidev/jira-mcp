@@ -1,32 +1,28 @@
 import pytest
 
-from jira_mcp.config import DEFAULT_JIRA_URL, JiraSettings
+from jira_mcp.config import JiraSettings
 
 
 def _base(**kw):
-    args = dict(email="me@digikala.com", api_token="token")
+    args = dict(host="https://works.digikala.com", pat="token")
     args.update(kw)
     return JiraSettings(**args)
 
 
-def test_url_defaults_to_company_host():
-    s = _base()
-    assert s.url == DEFAULT_JIRA_URL
-    assert s.url == "https://works.digikala.com"
+def test_host_trailing_slash_trimmed():
+    s = _base(host="https://works.digikala.com/")
+    assert s.host == "https://works.digikala.com"
 
 
-def test_url_trailing_slash_trimmed():
-    s = _base(url="https://works.digikala.com/")
-    assert s.url == "https://works.digikala.com"
-
-
-def test_requires_email_and_token():
+def test_requires_host_and_pat():
     with pytest.raises(ValueError):
-        JiraSettings(email=None, api_token=None)
+        JiraSettings(host=None, pat=None)
     with pytest.raises(ValueError):
-        JiraSettings(email="me@digikala.com")  # missing token
+        JiraSettings(host="https://works.digikala.com")  # missing pat
+    with pytest.raises(ValueError):
+        JiraSettings(pat="token")  # missing host
 
 
-def test_invalid_url_scheme():
+def test_invalid_host_scheme():
     with pytest.raises(ValueError):
-        _base(url="ftp://example.com")
+        _base(host="ftp://example.com")

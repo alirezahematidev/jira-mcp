@@ -68,23 +68,20 @@ uv pip install -e ".[dev]"   # or: pip install -e ".[dev]"
 
 ## Configuration
 
-The Jira host (`https://works.digikala.com`) and basic authentication are
-built in — you only need to provide your credentials via environment variables
-(or a `.env` file; copy `.env.example` to `.env`):
+Provide your Jira host and a personal access token (PAT) via environment
+variables (or a `.env` file; copy `.env.example` to `.env`):
 
 ```bash
-JIRA_EMAIL=you@digikala.com
-JIRA_API_TOKEN=your-api-token
+JIRA_HOST=https://works.digikala.com
+JIRA_PAT=your-personal-access-token
 ```
 
-Use the login (email or username) and password / API token you use for the
-self-hosted Jira.
+Generate the PAT from your self-hosted Jira account settings.
 
 ### Optional settings
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `JIRA_URL` | `https://works.digikala.com` | Override the host only if it moves |
 | `JIRA_TIMEOUT` | `30` | HTTP timeout (seconds) |
 | `JIRA_VERIFY_SSL` | `true` | Verify TLS certificates |
 | `JIRA_READ_ONLY` | `false` | Disable all write/delete tools |
@@ -109,8 +106,8 @@ Add to your MCP config (e.g. `claude_desktop_config.json`):
     "jira": {
       "command": "jira-mcp",
       "env": {
-        "JIRA_EMAIL": "you@digikala.com",
-        "JIRA_API_TOKEN": "your-api-token"
+        "JIRA_HOST": "https://works.digikala.com",
+        "JIRA_PAT": "your-personal-access-token"
       }
     }
   }

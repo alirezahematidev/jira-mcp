@@ -11,7 +11,7 @@ JIRA = "https://works.digikala.com"
 
 
 def settings():
-    return JiraSettings(url=JIRA, email="me@digikala.com", api_token="t")
+    return JiraSettings(host=JIRA, pat="t")
 
 
 @pytest.fixture

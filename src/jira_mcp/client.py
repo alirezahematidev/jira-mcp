@@ -1,7 +1,8 @@
 """Async HTTP client wrapping the Jira REST API (Server / Data Center).
 
 Targets self-hosted Jira: REST API v2, plain-text rich-text fields, and
-username-based user references. Authentication is HTTP basic.
+username-based user references. Authentication is a bearer personal access
+token (PAT).
 """
 
 from __future__ import annotations
@@ -43,9 +44,12 @@ class JiraClient:
     @staticmethod
     def _build_client(settings: JiraSettings) -> httpx.AsyncClient:
         return httpx.AsyncClient(
-            base_url=settings.url,
-            headers={"Accept": "application/json", "Content-Type":
-            "application/json","Authorization":f"Bearer {settings.api_token}"},
+            base_url=settings.host,
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {settings.pat}",
+            },
             timeout=settings.timeout,
             verify=settings.verify_ssl,
         )

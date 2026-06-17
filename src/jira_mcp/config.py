@@ -1,17 +1,14 @@
 """Configuration loading for the Jira MCP server.
 
-Targets the company's self-hosted Jira (Server / Data Center). The host is
-hardcoded and authentication is always HTTP basic; users only supply
-``JIRA_EMAIL`` and ``JIRA_API_TOKEN``. See ``.env.example``.
+Targets the company's self-hosted Jira (Server / Data Center). Authentication
+is a personal access token (PAT); users supply ``JIRA_HOST`` and ``JIRA_PAT``.
+See ``.env.example``.
 """
 
 from __future__ import annotations
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-# Company self-hosted Jira instance. Override with JIRA_URL only if it moves.
-DEFAULT_JIRA_URL = "https://works.digikala.com"
 
 
 class JiraSettings(BaseSettings):
@@ -24,14 +21,12 @@ class JiraSettings(BaseSettings):
         extra="ignore",
     )
 
-    url: str = Field(
-        default=DEFAULT_JIRA_URL,
+    # Required — the values a user must provide.
+    host: str | None = Field(
+        default=None,
         description="Base URL of the self-hosted Jira instance.",
     )
-
-    # Credentials — the only values a user must provide.
-    email: str | None = Field(default=None, description="Jira login (email or username).")
-    api_token: str | None = Field(default=None, description="Jira API token / password.")
+    pat: str | None = Field(default=None, description="Jira personal access token.")
 
     # behaviour
     timeout: float = Field(default=30.0, description="HTTP request timeout in seconds.")
@@ -43,11 +38,11 @@ class JiraSettings(BaseSettings):
 
     @model_validator(mode="after")
     def _validate(self) -> JiraSettings:
-        self.url = self.url.rstrip("/")
-        if not self.url.startswith(("http://", "https://")):
-            raise ValueError("JIRA_URL must start with http:// or https://")
-        if not self.email or not self.api_token:
-            raise ValueError("Set JIRA_EMAIL and JIRA_API_TOKEN.")
+        if not self.host or not self.pat:
+            raise ValueError("Set JIRA_HOST and JIRA_PAT.")
+        self.host = self.host.rstrip("/")
+        if not self.host.startswith(("http://", "https://")):
+            raise ValueError("JIRA_HOST must start with http:// or https://")
         return self
 
 
