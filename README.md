@@ -78,14 +78,6 @@ JIRA_PAT=your-personal-access-token
 
 Generate the PAT from your self-hosted Jira account settings.
 
-### Optional settings
-
-| Variable          | Default | Meaning                        |
-| ----------------- | ------- | ------------------------------ |
-| `JIRA_TIMEOUT`    | `30`    | HTTP timeout (seconds)         |
-| `JIRA_VERIFY_SSL` | `true`  | Verify TLS certificates        |
-| `JIRA_READ_ONLY`  | `false` | Disable all write/delete tools |
-
 ## Running
 
 ```bash
