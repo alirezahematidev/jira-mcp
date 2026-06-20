@@ -28,7 +28,7 @@ REST API v2 with HTTP basic auth — you only supply your PAT and host.
 | `add_comment`      | Comment on an issue                             |
 | `transition_issue` | Move an issue through its workflow              |
 | `assign_issue`     | Assign / unassign an issue                      |
-| `add_worklog`      | Log time against an issue                       |
+| `add_worklog`      | Log work: desc, date, time, remaining estimate  |
 | `link_issues`      | Link two issues                                 |
 | `delete_issue`     | Delete an issue (guarded)                       |
 

@@ -12,6 +12,7 @@ The server reads its configuration from the environment (see ``config.py`` and
 from __future__ import annotations
 
 import sys
+from datetime import datetime, timezone
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -58,6 +59,25 @@ def _get_client() -> JiraClient:
     if _client is None:
         _client = JiraClient(_get_settings())
     return _client
+
+
+def _to_jira_datetime(value: str) -> str:
+    """Coerce a date or datetime string into Jira's worklog ``started`` format.
+
+    Jira expects ``yyyy-MM-dd'T'HH:mm:ss.SSSZ`` (e.g. ``2026-06-20T00:00:00.000+0000``).
+    Date-only input is taken as midnight; naive input is treated as UTC.
+    """
+    text = value.strip().replace("Z", "+00:00")
+    try:
+        dt = datetime.fromisoformat(text)
+    except ValueError as exc:
+        raise ToolError(
+            f"Could not parse date {value!r}; use ISO format such as "
+            "'2026-06-20' or '2026-06-20T14:30:00'."
+        ) from exc
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.strftime("%Y-%m-%dT%H:%M:%S") + f".{dt.microsecond // 1000:03d}" + dt.strftime("%z")
 
 
 def _require_writable() -> None:
@@ -362,22 +382,47 @@ async def assign_issue(issue_key: str, assignee: str | None) -> dict[str, Any]:
 
 @mcp.tool()
 async def add_worklog(
-    issue_key: str, time_spent: str, comment: str | None = None
+    issue_key: str,
+    time_spent: str,
+    comment: str | None = None,
+    started: str | None = None,
+    new_remaining_estimate: str | None = None,
 ) -> dict[str, Any]:
-    """Log work against an issue.
+    """Log work against an issue (a worklog / timesheet entry).
+
+    Mirrors Jira's worklog fields: Description, Date, Worked, Remaining estimate.
 
     Args:
         issue_key: The issue.
-        time_spent: Jira duration string, e.g. "3h 30m", "1d", "45m".
-        comment: Optional note about the work.
+        time_spent: Work logged (the "Worked" column), a Jira duration string,
+            e.g. "3h 30m", "1d", "45m".
+        comment: Optional note describing the work (the "Description" column).
+        started: Optional date/time the work began (the "Date" column), ISO format
+            such as "2026-06-20" or "2026-06-20T14:30:00". Defaults to now if omitted.
+        new_remaining_estimate: Optionally set the remaining estimate after logging
+            (the "Remaining estimate" column), e.g. "2h" or "0". When omitted, Jira
+            auto-decrements the estimate by the logged time.
     """
     _require_writable()
     client = _get_client()
+    started_at = _to_jira_datetime(started) if started else None
     try:
-        log = await client.add_worklog(issue_key, time_spent=time_spent, comment=comment)
+        log = await client.add_worklog(
+            issue_key,
+            time_spent=time_spent,
+            comment=comment,
+            started=started_at,
+            new_estimate=new_remaining_estimate,
+        )
     except JiraError as exc:
         raise ToolError(str(exc)) from exc
-    return {"id": log.get("id"), "issue": issue_key, "time_spent": log.get("timeSpent")}
+    return {
+        "id": log.get("id"),
+        "issue": issue_key,
+        "time_spent": log.get("timeSpent"),
+        "started": log.get("started"),
+        "remaining_estimate": new_remaining_estimate,
+    }
 
 
 @mcp.tool()

@@ -97,6 +97,49 @@ async def test_transition_with_comment(jira):
 
 
 @respx.mock
+async def test_add_worklog_minimal(jira):
+    route = respx.post(f"{JIRA}/rest/api/2/issue/PROJ-1/worklog").mock(
+        return_value=httpx.Response(201, json={"id": "1", "timeSpent": "1h"})
+    )
+    await jira.add_worklog("PROJ-1", time_spent="1h")
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"timeSpent": "1h"}
+    assert "adjustEstimate" not in route.calls.last.request.url.params
+
+
+@respx.mock
+async def test_add_worklog_full_fields(jira):
+    route = respx.post(f"{JIRA}/rest/api/2/issue/PROJ-1/worklog").mock(
+        return_value=httpx.Response(201, json={"id": "2", "timeSpent": "3h 30m"})
+    )
+    await jira.add_worklog(
+        "PROJ-1",
+        time_spent="3h 30m",
+        comment="fixed the bug",
+        started="2026-06-20T00:00:00.000+0000",
+        new_estimate="2h",
+    )
+    request = route.calls.last.request
+    body = json.loads(request.content)
+    assert body["timeSpent"] == "3h 30m"
+    assert body["comment"] == "fixed the bug"
+    assert body["started"] == "2026-06-20T00:00:00.000+0000"
+    assert request.url.params["adjustEstimate"] == "new"
+    assert request.url.params["newEstimate"] == "2h"
+
+
+@respx.mock
+async def test_add_worklog_zero_estimate_is_sent(jira):
+    route = respx.post(f"{JIRA}/rest/api/2/issue/PROJ-1/worklog").mock(
+        return_value=httpx.Response(201, json={"id": "3", "timeSpent": "1h"})
+    )
+    await jira.add_worklog("PROJ-1", time_spent="1h", new_estimate="0")
+    params = route.calls.last.request.url.params
+    assert params["adjustEstimate"] == "new"
+    assert params["newEstimate"] == "0"
+
+
+@respx.mock
 async def test_search_users_uses_username_param(jira):
     route = respx.get(f"{JIRA}/rest/api/2/user/search").mock(
         return_value=httpx.Response(200, json=[{"name": "bob"}])

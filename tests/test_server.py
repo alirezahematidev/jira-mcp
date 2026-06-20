@@ -102,6 +102,47 @@ async def test_create_issue_returns_url():
     await server._client.aclose()
 
 
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("2026-06-20", "2026-06-20T00:00:00.000+0000"),
+        ("2026-06-20T14:30:00", "2026-06-20T14:30:00.000+0000"),
+        ("2026-06-20T14:30:00Z", "2026-06-20T14:30:00.000+0000"),
+        ("2026-06-20T14:30:00+03:30", "2026-06-20T14:30:00.000+0330"),
+    ],
+)
+def test_to_jira_datetime(value, expected):
+    assert server._to_jira_datetime(value) == expected
+
+
+def test_to_jira_datetime_rejects_garbage():
+    with pytest.raises(server.ToolError):
+        server._to_jira_datetime("not-a-date")
+
+
+@respx.mock
+async def test_add_worklog_normalizes_started_and_sets_estimate():
+    _install()
+    route = respx.post(f"{JIRA}/rest/api/2/issue/P-1/worklog").mock(
+        return_value=httpx.Response(201, json={"id": "9", "timeSpent": "2h", "started": "x"})
+    )
+    out = await server.add_worklog(
+        "P-1",
+        time_spent="2h",
+        comment="done",
+        started="2026-06-20",
+        new_remaining_estimate="1h",
+    )
+    import json
+
+    request = route.calls.last.request
+    body = json.loads(request.content)
+    assert body["started"] == "2026-06-20T00:00:00.000+0000"
+    assert request.url.params["newEstimate"] == "1h"
+    assert out["remaining_estimate"] == "1h"
+    await server._client.aclose()
+
+
 @respx.mock
 async def test_jira_error_becomes_tool_error():
     _install()

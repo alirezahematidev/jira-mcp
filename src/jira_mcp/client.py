@@ -229,12 +229,27 @@ class JiraClient:
     # --- worklog ------------------------------------------------------------
 
     async def add_worklog(
-        self, issue_key: str, *, time_spent: str, comment: str | None = None
+        self,
+        issue_key: str,
+        *,
+        time_spent: str,
+        comment: str | None = None,
+        started: str | None = None,
+        new_estimate: str | None = None,
     ) -> dict[str, Any]:
         body: dict[str, Any] = {"timeSpent": time_spent}
         if comment:
             body["comment"] = comment
-        return await self._request("POST", f"{API}/issue/{issue_key}/worklog", json=body)
+        if started:
+            body["started"] = started
+        # ``adjustEstimate=new`` sets the remaining estimate explicitly; omitting
+        # it lets Jira auto-decrement the estimate by the logged time.
+        params: dict[str, Any] | None = None
+        if new_estimate is not None:
+            params = {"adjustEstimate": "new", "newEstimate": new_estimate}
+        return await self._request(
+            "POST", f"{API}/issue/{issue_key}/worklog", params=params, json=body
+        )
 
     # --- links --------------------------------------------------------------
 

@@ -6,6 +6,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `add_worklog` now accepts `started` (the work date) and `new_remaining_estimate`,
+  covering the full Jira worklog form (description, date, worked, remaining estimate).
+
 ### Changed
 
 - Switched authentication to a bearer personal access token (PAT). Users now
