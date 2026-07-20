@@ -278,3 +278,8 @@ class JiraClient:
         if state:
             params["state"] = state
         return await self._request("GET", f"{AGILE}/board/{board_id}/sprint", params=params)
+
+    async def add_issue_to_sprint(self, sprint_id: int, issue_key: str) -> None:
+        await self._request(
+            "POST", f"{AGILE}/sprint/{sprint_id}/issue", json={"issues": [issue_key]}
+        )

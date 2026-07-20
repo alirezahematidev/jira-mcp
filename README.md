@@ -11,26 +11,27 @@ REST API v2 with HTTP basic auth — you only supply your PAT and host.
 
 ## Features
 
-| Tool               | Description                                     |
-| ------------------ | ----------------------------------------------- |
-| `get_current_user` | Who am I? (connectivity check)                  |
-| `search_issues`    | Search issues with JQL                          |
-| `get_issue`        | Fetch one issue (optionally with comments)      |
-| `get_comments`     | List an issue's comments                        |
-| `list_transitions` | Available workflow transitions for an issue     |
-| `list_projects`    | List accessible projects                        |
-| `get_project`      | Fetch one project                               |
-| `search_users`     | Find users (returns account ids for assignment) |
-| `list_boards`      | List agile boards                               |
-| `list_sprints`     | List sprints on a board                         |
-| `create_issue`     | Create an issue                                 |
-| `update_issue`     | Update fields on an issue                       |
-| `add_comment`      | Comment on an issue                             |
-| `transition_issue` | Move an issue through its workflow              |
-| `assign_issue`     | Assign / unassign an issue                      |
-| `add_worklog`      | Log work: desc, date, time, remaining estimate  |
-| `link_issues`      | Link two issues                                 |
-| `delete_issue`     | Delete an issue (guarded)                       |
+| Tool                   | Description                                     |
+| ---------------------- | ----------------------------------------------- |
+| `get_current_user`     | Who am I? (connectivity check)                  |
+| `search_issues`        | Search issues with JQL                          |
+| `get_issue`            | Fetch one issue (optionally with comments)      |
+| `get_comments`         | List an issue's comments                        |
+| `list_transitions`     | Available workflow transitions for an issue     |
+| `list_projects`        | List accessible projects                        |
+| `get_project`          | Fetch one project                               |
+| `search_users`         | Find users (returns account ids for assignment) |
+| `list_boards`          | List agile boards                               |
+| `list_sprints`         | List sprints on a board                         |
+| `create_issue`         | Create an issue                                 |
+| `update_issue`         | Update fields on an issue                       |
+| `add_comment`          | Comment on an issue                             |
+| `transition_issue`     | Move an issue through its workflow              |
+| `assign_issue`         | Assign / unassign an issue                      |
+| `move_issue_to_sprint` | Move an issue into an existing sprint           |
+| `add_worklog`          | Log work: desc, date, time, remaining estimate  |
+| `link_issues`          | Link two issues                                 |
+| `delete_issue`         | Delete an issue (guarded)                       |
 
 Write tools can be disabled entirely with `JIRA_READ_ONLY=true`.
 

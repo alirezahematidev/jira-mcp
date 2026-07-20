@@ -144,6 +144,28 @@ async def test_add_worklog_normalizes_started_and_sets_estimate():
 
 
 @respx.mock
+async def test_move_issue_to_sprint():
+    _install()
+    route = respx.post(f"{JIRA}/rest/agile/1.0/sprint/42/issue").mock(
+        return_value=httpx.Response(204)
+    )
+    out = await server.move_issue_to_sprint("P-1", 42)
+    import json
+
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"issues": ["P-1"]}
+    assert out == {"key": "P-1", "sprint_id": 42, "status": "ok"}
+    await server._client.aclose()
+
+
+async def test_move_issue_to_sprint_blocked_in_read_only():
+    _install(read_only=True)
+    with pytest.raises(server.ToolError):
+        await server.move_issue_to_sprint("P-1", 42)
+    await server._client.aclose()
+
+
+@respx.mock
 async def test_jira_error_becomes_tool_error():
     _install()
     respx.get(f"{JIRA}/rest/api/2/issue/BAD").mock(

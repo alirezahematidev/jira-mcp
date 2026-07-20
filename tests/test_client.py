@@ -140,6 +140,17 @@ async def test_add_worklog_zero_estimate_is_sent(jira):
 
 
 @respx.mock
+async def test_add_issue_to_sprint(jira):
+    route = respx.post(f"{JIRA}/rest/agile/1.0/sprint/42/issue").mock(
+        return_value=httpx.Response(204)
+    )
+    await jira.add_issue_to_sprint(42, "PROJ-1")
+    assert route.called
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"issues": ["PROJ-1"]}
+
+
+@respx.mock
 async def test_search_users_uses_username_param(jira):
     route = respx.get(f"{JIRA}/rest/api/2/user/search").mock(
         return_value=httpx.Response(200, json=[{"name": "bob"}])

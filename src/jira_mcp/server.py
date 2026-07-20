@@ -381,6 +381,25 @@ async def assign_issue(issue_key: str, assignee: str | None) -> dict[str, Any]:
 
 
 @mcp.tool()
+async def move_issue_to_sprint(issue_key: str, sprint_id: int) -> dict[str, Any]:
+    """Move an issue into an existing sprint.
+
+    Call list_boards then list_sprints to find the sprint_id.
+
+    Args:
+        issue_key: The issue to move, e.g. "PROJ-123".
+        sprint_id: The target sprint id (from list_sprints).
+    """
+    _require_writable()
+    client = _get_client()
+    try:
+        await client.add_issue_to_sprint(sprint_id, issue_key)
+    except JiraError as exc:
+        raise ToolError(str(exc)) from exc
+    return {"key": issue_key, "sprint_id": sprint_id, "status": "ok"}
+
+
+@mcp.tool()
 async def add_worklog(
     issue_key: str,
     time_spent: str,
