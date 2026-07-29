@@ -166,6 +166,41 @@ async def test_move_issue_to_sprint_blocked_in_read_only():
 
 
 @respx.mock
+async def test_update_comment_returns_formatted_comment():
+    _install()
+    respx.put(f"{JIRA}/rest/api/2/issue/P-1/comment/5").mock(
+        return_value=httpx.Response(
+            200, json={"id": "5", "author": {"displayName": "A"}, "body": "edited"}
+        )
+    )
+    out = await server.update_comment("P-1", "5", "edited")
+    assert out["id"] == "5"
+    assert out["body"] == "edited"
+    await server._client.aclose()
+
+
+@respx.mock
+async def test_delete_comment():
+    _install()
+    route = respx.delete(f"{JIRA}/rest/api/2/issue/P-1/comment/5").mock(
+        return_value=httpx.Response(204)
+    )
+    out = await server.delete_comment("P-1", "5")
+    assert route.called
+    assert out == {"issue": "P-1", "comment_id": "5", "deleted": True}
+    await server._client.aclose()
+
+
+async def test_comment_edits_blocked_in_read_only():
+    _install(read_only=True)
+    with pytest.raises(server.ToolError):
+        await server.update_comment("P-1", "5", "edited")
+    with pytest.raises(server.ToolError):
+        await server.delete_comment("P-1", "5")
+    await server._client.aclose()
+
+
+@respx.mock
 async def test_jira_error_becomes_tool_error():
     _install()
     respx.get(f"{JIRA}/rest/api/2/issue/BAD").mock(

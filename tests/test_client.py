@@ -86,6 +86,26 @@ async def test_unassign_sends_null_name(jira):
 
 
 @respx.mock
+async def test_update_comment(jira):
+    route = respx.put(f"{JIRA}/rest/api/2/issue/PROJ-1/comment/10001").mock(
+        return_value=httpx.Response(200, json={"id": "10001", "body": "edited"})
+    )
+    comment = await jira.update_comment("PROJ-1", "10001", "edited")
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"body": "edited"}
+    assert comment["body"] == "edited"
+
+
+@respx.mock
+async def test_delete_comment(jira):
+    route = respx.delete(f"{JIRA}/rest/api/2/issue/PROJ-1/comment/10001").mock(
+        return_value=httpx.Response(204)
+    )
+    assert await jira.delete_comment("PROJ-1", "10001") is None
+    assert route.called
+
+
+@respx.mock
 async def test_transition_with_comment(jira):
     route = respx.post(f"{JIRA}/rest/api/2/issue/PROJ-1/transitions").mock(
         return_value=httpx.Response(204)

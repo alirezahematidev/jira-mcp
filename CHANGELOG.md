@@ -8,6 +8,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `update_comment` and `delete_comment` tools, completing CRUD over issue comments.
 - `add_worklog` now accepts `started` (the work date) and `new_remaining_estimate`,
   covering the full Jira worklog form (description, date, worked, remaining estimate).
 

@@ -346,6 +346,45 @@ async def add_comment(issue_key: str, body: str) -> dict[str, Any]:
 
 
 @mcp.tool()
+async def update_comment(issue_key: str, comment_id: str, body: str) -> dict[str, Any]:
+    """Replace the text of an existing comment.
+
+    Call get_comments first to get the comment_id.
+
+    Args:
+        issue_key: The issue the comment belongs to.
+        comment_id: The comment id (from get_comments).
+        body: The new comment text, replacing the previous body entirely.
+    """
+    _require_writable()
+    client = _get_client()
+    try:
+        comment = await client.update_comment(issue_key, comment_id, body)
+    except JiraError as exc:
+        raise ToolError(str(exc)) from exc
+    return format_comment(comment)
+
+
+@mcp.tool()
+async def delete_comment(issue_key: str, comment_id: str) -> dict[str, Any]:
+    """Permanently delete a comment from an issue. This cannot be undone.
+
+    Call get_comments first to get the comment_id.
+
+    Args:
+        issue_key: The issue the comment belongs to.
+        comment_id: The comment id (from get_comments).
+    """
+    _require_writable()
+    client = _get_client()
+    try:
+        await client.delete_comment(issue_key, comment_id)
+    except JiraError as exc:
+        raise ToolError(str(exc)) from exc
+    return {"issue": issue_key, "comment_id": comment_id, "deleted": True}
+
+
+@mcp.tool()
 async def transition_issue(
     issue_key: str, transition_id: str, comment: str | None = None
 ) -> dict[str, Any]:

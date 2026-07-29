@@ -26,6 +26,8 @@ REST API v2 with HTTP basic auth — you only supply your PAT and host.
 | `create_issue`         | Create an issue                                 |
 | `update_issue`         | Update fields on an issue                       |
 | `add_comment`          | Comment on an issue                             |
+| `update_comment`       | Edit an existing comment                        |
+| `delete_comment`       | Delete a comment (guarded)                      |
 | `transition_issue`     | Move an issue through its workflow              |
 | `assign_issue`         | Assign / unassign an issue                      |
 | `move_issue_to_sprint` | Move an issue into an existing sprint           |

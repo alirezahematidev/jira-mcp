@@ -212,6 +212,20 @@ class JiraClient:
             "POST", f"{API}/issue/{issue_key}/comment", json={"body": body}
         )
 
+    async def update_comment(
+        self, issue_key: str, comment_id: str, body: str
+    ) -> dict[str, Any]:
+        return await self._request(
+            "PUT",
+            f"{API}/issue/{issue_key}/comment/{comment_id}",
+            json={"body": body},
+        )
+
+    async def delete_comment(self, issue_key: str, comment_id: str) -> None:
+        await self._request(
+            "DELETE", f"{API}/issue/{issue_key}/comment/{comment_id}"
+        )
+
     # --- transitions / workflow --------------------------------------------
 
     async def get_transitions(self, issue_key: str) -> list[dict[str, Any]]:
