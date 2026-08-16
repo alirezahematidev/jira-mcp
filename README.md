@@ -21,6 +21,7 @@ REST API v2 with HTTP basic auth — you only supply your PAT and host.
 | `list_projects`        | List accessible projects                        |
 | `get_project`          | Fetch one project                               |
 | `search_users`         | Find users (returns account ids for assignment) |
+| `list_fields`          | List field ids/names (find custom fields)       |
 | `list_boards`          | List agile boards                               |
 | `list_sprints`         | List sprints on a board                         |
 | `create_issue`         | Create an issue                                 |

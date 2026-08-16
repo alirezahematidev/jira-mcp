@@ -16,11 +16,13 @@ def reset_singletons():
     """Reset module globals around each test."""
     server._settings = None
     server._client = None
+    server._fields = None
     yield
     if server._client is not None:
         # Tests run in an event loop; close via the loop if still open.
         server._client = None
     server._settings = None
+    server._fields = None
 
 
 def _install(read_only=False):
@@ -87,6 +89,43 @@ async def test_update_issue_requires_fields():
     _install()
     with pytest.raises(server.ToolError):
         await server.update_issue("P-1")
+    await server._client.aclose()
+
+
+FIELDS = [
+    {"id": "summary", "name": "Summary", "custom": False, "schema": {"type": "string"}},
+    {"id": "customfield_100", "name": "Tester", "custom": True, "schema": {"type": "user"}},
+    {
+        "id": "customfield_200",
+        "name": "Testers",
+        "custom": True,
+        "schema": {"type": "array", "items": "user"},
+    },
+]
+
+
+@respx.mock
+async def test_update_issue_resolves_custom_fields_by_name():
+    _install()
+    respx.get(f"{JIRA}/rest/api/2/field").mock(return_value=httpx.Response(200, json=FIELDS))
+    route = respx.put(f"{JIRA}/rest/api/2/issue/P-1").mock(return_value=httpx.Response(204))
+
+    await server.update_issue("P-1", custom_fields={"tester": "jdoe", "Testers": ["a", "b"]})
+
+    import json
+
+    sent = json.loads(route.calls.last.request.content)["fields"]
+    assert sent["customfield_100"] == {"name": "jdoe"}
+    assert sent["customfield_200"] == [{"name": "a"}, {"name": "b"}]
+    await server._client.aclose()
+
+
+@respx.mock
+async def test_update_issue_unknown_custom_field():
+    _install()
+    respx.get(f"{JIRA}/rest/api/2/field").mock(return_value=httpx.Response(200, json=FIELDS))
+    with pytest.raises(server.ToolError, match="list_fields"):
+        await server.update_issue("P-1", custom_fields={"Nope": "x"})
     await server._client.aclose()
 
 

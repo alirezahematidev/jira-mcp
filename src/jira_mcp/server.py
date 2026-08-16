@@ -45,6 +45,7 @@ class ToolError(RuntimeError):
 # the client is created on first use, inside the server's event loop.
 _settings: JiraSettings | None = None
 _client: JiraClient | None = None
+_fields: list[dict[str, Any]] | None = None
 
 
 def _get_settings() -> JiraSettings:
@@ -59,6 +60,41 @@ def _get_client() -> JiraClient:
     if _client is None:
         _client = JiraClient(_get_settings())
     return _client
+
+
+async def _get_fields() -> list[dict[str, Any]]:
+    # The field list is per-instance configuration; fetch it once per process.
+    global _fields
+    if _fields is None:
+        _fields = await _get_client().list_fields()
+    return _fields
+
+
+def _field_value(schema: dict[str, Any], value: Any) -> Any:
+    """Wrap plain usernames for user-picker fields; other types pass through."""
+    if schema.get("type") == "user" and isinstance(value, str):
+        return {"name": value}
+    if schema.get("type") == "array" and schema.get("items") == "user":
+        items = [value] if isinstance(value, str) else value
+        return [{"name": v} if isinstance(v, str) else v for v in items]
+    return value
+
+
+async def _resolve_custom_fields(values: dict[str, Any]) -> dict[str, Any]:
+    """Map ``{field name or id: value}`` onto Jira field ids and value shapes."""
+    fields = await _get_fields()
+    by_id = {f.get("id"): f for f in fields}
+    by_name = {(f.get("name") or "").casefold(): f for f in fields}
+    resolved: dict[str, Any] = {}
+    for name, value in values.items():
+        field = by_id.get(name) or by_name.get(name.casefold())
+        if field is None:
+            raise ToolError(
+                f"This Jira has no field named {name!r}; call list_fields to see "
+                "which fields are available."
+            )
+        resolved[field["id"]] = _field_value(field.get("schema") or {}, value)
+    return resolved
 
 
 def _to_jira_datetime(value: str) -> str:
@@ -213,6 +249,32 @@ async def search_users(query: str, max_results: int = 20) -> list[dict[str, Any]
 
 
 @mcp.tool()
+async def list_fields(query: str | None = None) -> list[dict[str, Any]]:
+    """List the fields this Jira has, to find custom fields such as "Tester".
+
+    The returned name or id can be passed to update_issue's custom_fields.
+
+    Args:
+        query: Optional case-insensitive substring filter on the field name.
+    """
+    try:
+        fields = await _get_fields()
+    except JiraError as exc:
+        raise ToolError(str(exc)) from exc
+    needle = (query or "").casefold()
+    return [
+        {
+            "id": f.get("id"),
+            "name": f.get("name"),
+            "custom": f.get("custom", False),
+            "type": (f.get("schema") or {}).get("type"),
+        }
+        for f in fields
+        if needle in (f.get("name") or "").casefold()
+    ]
+
+
+@mcp.tool()
 async def list_boards(
     project_key: str | None = None, max_results: int = 50
 ) -> dict[str, Any]:
@@ -311,8 +373,16 @@ async def update_issue(
     description: str | None = None,
     priority: str | None = None,
     labels: list[str] | None = None,
+    custom_fields: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Update fields on an existing issue. Only the provided fields are changed."""
+    """Update fields on an existing issue. Only the provided fields are changed.
+
+    Args:
+        custom_fields: Optional ``{field name or id: value}`` for fields without a
+            dedicated argument, e.g. ``{"Tester": "jdoe"}``. User-picker fields
+            accept a username (see search_users), multi-user fields a list of
+            usernames. Call list_fields to check which fields this Jira has.
+    """
     _require_writable()
     client = _get_client()
     fields: dict[str, Any] = {}
@@ -324,9 +394,11 @@ async def update_issue(
         fields["priority"] = {"name": priority}
     if labels is not None:
         fields["labels"] = labels
-    if not fields:
-        raise ToolError("No fields provided to update.")
     try:
+        if custom_fields:
+            fields.update(await _resolve_custom_fields(custom_fields))
+        if not fields:
+            raise ToolError("No fields provided to update.")
         await client.update_issue(issue_key, fields)
     except JiraError as exc:
         raise ToolError(str(exc)) from exc

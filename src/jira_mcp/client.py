@@ -115,6 +115,9 @@ class JiraClient:
             params={"username": query, "maxResults": max_results},
         )
 
+    async def list_fields(self) -> list[dict[str, Any]]:
+        return await self._request("GET", f"{API}/field")
+
     # --- projects -----------------------------------------------------------
 
     async def list_projects(self, max_results: int = 50) -> list[dict[str, Any]]:
